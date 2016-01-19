@@ -14,7 +14,6 @@ import tempfile
 import subprocess
 import pipes
 import logging
-import wave
 import urllib
 import urlparse
 import requests
@@ -22,11 +21,6 @@ from abc import ABCMeta, abstractmethod
 
 import argparse
 import yaml
-
-try:
-    import mad
-except ImportError:
-    pass
 
 try:
     import gtts
@@ -38,9 +32,13 @@ try:
 except ImportError:
     pass
 
+try:
+    import pydub
+except ImportError:
+    pass
+
 import diagnose
 import jasperpath
-
 
 class AbstractTTSEngine(object):
     """
@@ -73,7 +71,7 @@ class AbstractTTSEngine(object):
     def play(self, filename):
         # FIXME: Use platform-independent audio-output here
         # See issue jasperproject/jasper-client#188
-        cmd = ['aplay', '-D', 'plughw:1,0', str(filename)]
+        cmd = ['aplay', '-D', 'plughw:0,0', str(filename)]
         self._logger.debug('Executing %s', ' '.join([pipes.quote(arg)
                                                      for arg in cmd]))
         with tempfile.TemporaryFile() as f:
@@ -94,18 +92,9 @@ class AbstractMp3TTSEngine(AbstractTTSEngine):
                 diagnose.check_python_import('mad'))
 
     def play_mp3(self, filename):
-        mf = mad.MadFile(filename)
         with tempfile.NamedTemporaryFile(suffix='.wav') as f:
-            wav = wave.open(f, mode='wb')
-            wav.setframerate(mf.samplerate())
-            wav.setnchannels(1 if mf.mode() == mad.MODE_SINGLE_CHANNEL else 2)
-            # 4L is the sample width of 32 bit audio
-            wav.setsampwidth(4L)
-            frame = mf.read()
-            while frame is not None:
-                wav.writeframes(frame)
-                frame = mf.read()
-            wav.close()
+            audio = pydub.AudioSegment.from_mp3(filename)
+            audio.export(f.name, format='wav')
             self.play(f.name)
 
 

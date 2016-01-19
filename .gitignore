@@ -65,3 +65,6 @@ target/
 
 # SublimeLinter config file
 .sublimelinterrc
+
+# virtualenv (sorry...)
+python/
