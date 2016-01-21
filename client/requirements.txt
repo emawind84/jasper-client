@@ -24,3 +24,6 @@ python-dateutil==2.3
 
 # MPDControl module
 python-mpd==0.3.0
+
+# Audio Manipulator http://pydub.com/
+pydub==0.16.3
