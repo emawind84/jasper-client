@@ -83,7 +83,7 @@ def check_python_import(package_or_module):
     if found:
         logger.debug("Python %s '%s' found: %r",
                      "package" if loader.is_package(package_or_module)
-                     else "module", package_or_module, loader.get_filename())
+                     else "module", package_or_module, loader.get_filename(package_or_module))
     else:
         logger.debug("Python import '%s' not found", package_or_module)
     return found

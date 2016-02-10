@@ -23,6 +23,7 @@ class Conversation(object):
         while True:
             # Print notifications until empty
             notifications = self.notifier.getAllNotifications()
+            self._logger.debug(self.notifier._sched.print_jobs())
             for notif in notifications:
                 self._logger.info("Received notification: '%s'", str(notif))
 

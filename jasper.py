@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 # -*- coding: utf-8-*-
 
 import os
@@ -145,4 +145,7 @@ if __name__ == "__main__":
         logger.error("Error occured!", exc_info=True)
         sys.exit(1)
 
-    app.run()
+    try:
+        app.run()
+    except (KeyboardInterrupt, SystemExit):
+        pass

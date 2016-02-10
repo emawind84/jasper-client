@@ -1,7 +1,7 @@
 # -*- coding: utf-8-*-
 import Queue
 import atexit
-from modules import Gmail
+from modules import Gmail, SSHAuthLog
 from apscheduler.schedulers.background import BackgroundScheduler
 import logging
 
@@ -22,6 +22,8 @@ class Notifier(object):
         self.q = Queue.Queue()
         self.profile = profile
         self.notifiers = []
+        
+        self._logger.debug('Initializing Notifier...')
 
         if 'gmail_address' in profile and 'gmail_password' in profile:
             self.notifiers.append(self.NotificationClient(
@@ -30,10 +32,24 @@ class Notifier(object):
             self._logger.warning('gmail_address or gmail_password not set ' +
                                  'in profile, Gmail notifier will not be used')
 
-        sched = BackgroundScheduler(timezone="UTC", daemon=True)
+        if 'ssh_auth_log' in profile:
+            self.notifiers.append(self.NotificationClient(
+                    self.handleSSHAuthNotifications, None))
+        else:
+            self._logger.warning('ssh_auth_log not set,' +
+                                 'SSH login notifier will not be used')
+
+        job_defaults = {
+            'coalesce': True,
+            'max_instances': 1
+        }
+        sched = BackgroundScheduler(timezone="UTC", job_defaults=job_defaults)
         sched.start()
         sched.add_job(self.gather, 'interval', seconds=30)
         atexit.register(lambda: sched.shutdown(wait=False))
+        
+        # put the scheduler in Notifier object for reference
+        self._sched = sched
 
     def gather(self):
         [client.run() for client in self.notifiers]
@@ -51,7 +67,20 @@ class Notifier(object):
             self.q.put(styleEmail(e))
 
         return lastDate
+    
+    def handleSSHAuthNotifications(self, lastpos):
+        """Places new ssh login attempts in the Notifier's queue."""
+        auths, lastpos = SSHAuthLog.checkInvalidAuthentication(self.profile, lastpos)
 
+        def styleMsg(auth):
+            return "Login attempt by user %s from %s" % (auth['user'], auth['ip'])
+
+        for a in auths:
+            self._logger.debug('New notification received: %s' % a)
+            self.q.put(styleMsg(a))
+
+        return lastpos
+    
     def getNotification(self):
         """Returns a notification. Note that this function is consuming."""
         try:
@@ -68,9 +97,11 @@ class Notifier(object):
         """
         notifs = []
 
+        self._logger.debug('Retrieving notifications...')
         notif = self.getNotification()
         while notif:
             notifs.append(notif)
             notif = self.getNotification()
 
+        self._logger.debug('Number of notifications: %s' % len(notifs))
         return notifs
